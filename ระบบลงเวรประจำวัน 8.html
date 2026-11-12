@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ระบบลงเวรประจำวัน</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen pb-16">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-indigo-600 text-white sticky top-0 z-35 shadow-md">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl">📋</span>
+                <div>
+                    <h1 class="font-bold text-base leading-tight">ระบบลงเวรประจำวัน</h1>
+                    <p class="text-[11px] text-indigo-200 flex items-center gap-1" id="syncStatus">
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span>บันทึกข้อมูลในเครื่องถาวร</span>
+                    </p>
+                </div>
+            </div>
+            <button onclick="toggleRoleModal()" id="roleBtn" class="bg-indigo-700 hover:bg-indigo-800 text-xs px-3 py-2 rounded-full font-medium transition active:scale-95 border border-indigo-400/30 flex items-center gap-1 shadow-sm">
+                <span id="roleBtnText">🔑 ผู้ตรวจเวร</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-md mx-auto px-3 pt-3 space-y-3">
+
+        <!-- Role Badge & Quick Today -->
+        <div class="flex items-center justify-between bg-white px-3 py-2.5 rounded-2xl border border-slate-200/80 shadow-sm text-xs">
+            <div class="flex items-center gap-1.5">
+                <span class="text-slate-400">สิทธิ์ใช้งาน:</span>
+                <span id="roleBadge" class="font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">👁️ ดูอย่างเดียว</span>
+            </div>
+            <button onclick="setToToday()" class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-xl font-bold hover:bg-indigo-100 transition active:scale-95">📅 วันนี้</button>
+        </div>
+
+        <!-- Date Picker Card -->
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">📆</span>
+                <div>
+                    <div class="text-[10px] text-slate-400 font-medium">วันที่ปฏิบัติงาน</div>
+                    <div id="displayDate" class="text-sm font-bold text-slate-700">กำลังโหลด...</div>
+                </div>
+            </div>
+            <input type="date" id="dutyDate" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="flex bg-slate-200 p-1 rounded-xl text-xs font-semibold">
+            <button id="tabTodayBtn" onclick="switchTab('today')" class="flex-1 py-2.5 rounded-lg text-center bg-white text-indigo-600 shadow-sm transition">
+                📌 เวรประจำวัน
+            </button>
+            <button id="tabRosterBtn" onclick="switchTab('roster')" class="flex-1 py-2.5 rounded-lg text-center text-slate-600 transition">
+                🔢 เลขที่ 1-48
+            </button>
+            <button id="tabStatsBtn" onclick="switchTab('stats')" class="flex-1 py-2.5 rounded-lg text-center text-slate-600 transition">
+                📊 สถิติรวม
+            </button>
+        </div>
+
+        <!-- Inspector Extra Options -->
+        <div id="inspectorControlPanel" class="hidden bg-indigo-50 border border-indigo-200 p-3.5 rounded-2xl space-y-2 shadow-inner">
+            <div class="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                <span>➕ เพิ่มเวรพิเศษนอกรอบ (ผู้ตรวจ)</span>
+            </div>
+            <div class="flex gap-2">
+                <select id="assignSelect" class="flex-1 bg-white border border-indigo-200 text-xs rounded-xl px-2.5 py-2.5 focus:outline-none text-slate-700 font-medium">
+                    <!-- Populated via JS -->
+                </select>
+                <button onclick="addDutyToSelectedDate()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition active:scale-95 shadow-sm">
+                    เพิ่ม
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 1: TODAY DUTY LIST -->
+        <div id="viewToday" class="space-y-2">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-500 px-1 pt-1">
+                <span>ผู้มีเวรปฏิบัติงานประจำวัน</span>
+                <span id="dutyCount" class="bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full text-[11px]">0 คน</span>
+            </div>
+            <div id="todayDutyList" class="space-y-2.5">
+                <!-- Duty cards rendered here -->
+            </div>
+        </div>
+
+        <!-- TAB 2: ROSTER 1-48 LIST -->
+        <div id="viewRoster" class="hidden space-y-2">
+            <div class="text-xs font-bold text-slate-500 px-1 pt-1">
+                รายชื่อสมาชิกทั้งหมด (เลขที่ 1 - 48)
+            </div>
+            <div id="rosterGrid" class="grid grid-cols-1 gap-2">
+                <!-- Roster items rendered here -->
+            </div>
+        </div>
+
+        <!-- TAB 3: STATS & HISTORY -->
+        <div id="viewStats" class="hidden space-y-3">
+            <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white p-4 rounded-2xl shadow-md space-y-2">
+                <div class="text-xs font-medium text-indigo-200">สรุปการปฏิบัติงานเวรภาพรวม</div>
+                <div class="grid grid-cols-2 gap-2 text-center pt-1">
+                    <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
+                        <div class="text-[10px] text-indigo-200">ปฏิบัติงานแล้ว</div>
+                        <div id="totalDutyDoneCount" class="text-lg font-bold text-white">0 ครั้ง</div>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
+                        <div class="text-[10px] text-indigo-200">โดดเวรสะสม</div>
+                        <div id="totalSkippedCount" class="text-lg font-bold text-rose-200">0 ครั้ง</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-3 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 flex justify-between">
+                    <span>รายชื่อสมาชิก</span>
+                    <span>ประวัติสรุป (ทำ / ไม่เรียบร้อย / โดดเวร)</span>
+                </div>
+                <div id="statsList" class="divide-y divide-slate-100">
+                    <!-- Stats list rendered here -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL: Inspector Login -->
+    <div id="roleModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <span>👮‍♂️</span> ระบบเข้าสิทธิ์ผู้ตรวจเวร
+                </h3>
+                <button onclick="toggleRoleModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">✕</button>
+            </div>
+
+            <div id="loginForm" class="space-y-3">
+                <p class="text-xs text-slate-500 leading-relaxed">สำหรับผู้ตรวจเวร กรอกเลขประจำตัวและรหัสผ่านเพื่อสลับโหมดบันทึกผล</p>
+                <div>
+                    <label class="text-[11px] font-bold text-slate-600 block mb-1">เลขประจำตัวผู้ตรวจ</label>
+                    <input type="tel" id="inspectorId" placeholder="เช่น 42712" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-3 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold text-slate-600 block mb-1">รหัสผ่าน</label>
+                    <input type="password" id="inspectorPass" placeholder="กรอกรหัสผ่าน" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-3 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div id="loginError" class="text-rose-500 text-xs font-medium hidden">
+                    ⚠️ เลขประจำตัวหรือรหัสผ่านไม่ถูกต้อง!
+                </div>
+                <button onclick="loginAsInspector()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition active:scale-95">
+                    เข้าสู่ระบบผู้ตรวจ
+                </button>
+            </div>
+
+            <div id="logoutForm" class="space-y-3 hidden">
+                <div class="bg-emerald-50 text-emerald-800 p-3.5 rounded-xl text-xs font-medium flex items-center gap-2 border border-emerald-200">
+                    <span>✅</span>
+                    <span id="currentInspectorInfo">เข้าใช้งานสิทธิ์ผู้ตรวจเรียบร้อยแล้ว</span>
+                </div>
+                <button onclick="logoutInspector()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-3 rounded-xl border border-rose-200 transition active:scale-95">
+                    ออกจากระบบผู้ตรวจ (กลับเป็นโหมดดู)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Inspection & Duty Action Form -->
+    <div id="dutyActionModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+                <div>
+                    <h3 id="modalMemberTitle" class="font-bold text-slate-800 text-base">ตรวจงานเวร</h3>
+                    <p id="modalMemberSub" class="text-xs text-slate-400">ประจำวันที่</p>
+                </div>
+                <button onclick="closeDutyModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">✕</button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-2">1. ผลการตรวจสถานะ</label>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <label class="flex items-center space-x-2 border p-3 rounded-xl cursor-pointer hover:bg-slate-50 transition">
+                            <input type="radio" name="dutyStatusRadio" value="done" class="accent-indigo-600 w-4 h-4">
+                            <span class="font-bold text-emerald-700">🟢 ทำแล้ว</span>
+                        </label>
+                        <label class="flex items-center space-x-2 border p-3 rounded-xl cursor-pointer hover:bg-slate-50 transition">
+                            <input type="radio" name="dutyStatusRadio" value="incomplete" class="accent-indigo-600 w-4 h-4">
+                            <span class="font-bold text-amber-700">⚠️ ไม่เรียบร้อย</span>
+                        </label>
+                        <label class="flex items-center space-x-2 border p-3 rounded-xl cursor-pointer hover:bg-slate-50 transition">
+                            <input type="radio" name="dutyStatusRadio" value="pending" class="accent-indigo-600 w-4 h-4">
+                            <span class="font-bold text-slate-600">⏳ รอขึ้นทำ</span>
+                        </label>
+                        <label class="flex items-center space-x-2 border border-rose-200 bg-rose-50/40 p-3 rounded-xl cursor-pointer hover:bg-rose-50 transition">
+                            <input type="radio" name="dutyStatusRadio" value="skipped" class="accent-rose-600 w-4 h-4">
+                            <span class="font-bold text-rose-600">❌ โดดเวร</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-2">2. รายละเอียดงานที่ทำ</label>
+                    <div class="space-y-2 text-xs">
+                        <label class="flex items-center space-x-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                            <input type="checkbox" value="🪟 เช็ดกระจก" class="task-checkbox accent-indigo-600 rounded w-4 h-4">
+                            <span class="font-medium text-slate-700">🪟 เช็ดกระจก</span>
+                        </label>
+                        <label class="flex items-center space-x-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                            <input type="checkbox" value="🧹 กวาดพื้น" class="task-checkbox accent-indigo-600 rounded w-4 h-4">
+                            <span class="font-medium text-slate-700">🧹 กวาดพื้น</span>
+                        </label>
+                        <label class="flex items-center space-x-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                            <input type="checkbox" value="🪑 จัดโต๊ะ" class="task-checkbox accent-indigo-600 rounded w-4 h-4">
+                            <span class="font-medium text-slate-700">🪑 จัดโต๊ะ</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeDutyModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-3 rounded-xl transition">
+                    ยกเลิก
+                </button>
+                <button onclick="saveDutyModalAction()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl shadow-md transition active:scale-95">
+                    บันทึกผล
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white text-xs px-4 py-3 rounded-2xl shadow-xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2">
+        <span id="toastMsg">บันทึกเรียบร้อย</span>
+    </div>
+
+    <script>
+        const ALLOWED_INSPECTORS = [
+            { id: "42712", pass: "m16admin48" },
+            { id: "38409", pass: "m16admin01" },
+            { id: "38453", pass: "m16admin06" }
+        ];
+
+        let isInspector = false;
+        let currentInspectorId = null;
+        let selectedDateStr = new Date().toISOString().split('T')[0];
+        let currentTab = 'today';
+        let activeModalMemberId = null;
+        let dutySchedule = {}; 
+
+        // โหลดข้อมูลจาก LocalStorage
+        function loadStoredSchedule() {
+            try {
+                const saved = localStorage.getItem('duty_schedule_app_data_v6');
+                if (saved) {
+                    dutySchedule = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error("Storage load error:", e);
+            }
+        }
+
+        // เซฟข้อมูลลงใน LocalStorage
+        function saveData() {
+            try {
+                localStorage.setItem('duty_schedule_app_data_v6', JSON.stringify(dutySchedule));
+            } catch (e) {
+                console.error("Storage save error:", e);
+            }
+            renderUI();
+        }
+
+        const membersMaster = [
+            { id: 1, name: "สกาย", status: "normal", note: "" },
+            { id: 2, name: "ชิน", status: "normal", note: "" },
+            { id: 3, name: "กูเกิ้ล", status: "normal", note: "" },
+            { id: 4, name: "นัท", status: "normal", note: "" },
+            { id: 5, name: "กวี", status: "normal", note: "" },
+            { id: 6, name: "ต้นกล้า", status: "normal", note: "" },
+            { id: 7, name: "อั่งเปา (ต.)", status: "normal", note: "" },
+            { id: 8, name: "เอต้า", status: "normal", note: "" },
+            { id: 9, name: "ข้าวโอ๊ต", status: "normal", note: "" },
+            { id: 10, name: "เคนนี่", status: "normal", note: "" },
+            { id: 11, name: "ดีน", status: "normal", note: "" },
+            { id: 12, name: "พาวิน", status: "normal", note: "" },
+            { id: 13, name: "โต๋", status: "normal", note: "" },
+            { id: 14, name: "ไบร์ท", status: "normal", note: "" },
+            { id: 15, name: "เอเธนส์", status: "moved", note: "ย้ายห้อง" },
+            { id: 16, name: "โปรด", status: "normal", note: "" },
+            { id: 17, name: "ปานะ", status: "normal", note: "" },
+            { id: 18, name: "เกน (อ.)", status: "normal", note: "" },
+            { id: 19, name: "เบน", status: "normal", note: "" },
+            { id: 20, name: "วี", status: "normal", note: "" },
+            { id: 21, name: "ตาต้า", status: "normal", note: "" },
+            { id: 22, name: "อั่งเปา (ช.)", status: "normal", note: "" },
+            { id: 23, name: "อิ่มอุ่น", status: "normal", note: "" },
+            { id: 24, name: "วิช", status: "normal", note: "" },
+            { id: 25, name: "เกื้อ", status: "normal", note: "" },
+            { id: 26, name: "ตะวัน", status: "normal", note: "" },
+            { id: 27, name: "เคน", status: "normal", note: "" },
+            { id: 28, name: "ภูผา", status: "normal", note: "" },
+            { id: 29, name: "แคล้มป์", status: "normal", note: "" },
+            { id: 30, name: "—", status: "resigned", note: "ลาออก" },
+            { id: 31, name: "คิดดี", status: "normal", note: "" },
+            { id: 32, name: "พีเจ", status: "normal", note: "" },
+            { id: 33, name: "เภา", status: "normal", note: "" },
+            { id: 34, name: "นน", status: "normal", note: "" },
+            { id: 35, name: "รัช", status: "normal", note: "" },
+            { id: 36, name: "ยอร์ช", status: "normal", note: "" },
+            { id: 37, name: "เจ้านาย", status: "normal", note: "" },
+            { id: 38, name: "มาร์ค", status: "normal", note: "" },
+            { id: 39, name: "พอร์ช", status: "normal", note: "" },
+            { id: 40, name: "ออสการ์", status: "normal", note: "" },
+            { id: 41, name: "เจ้าสัว", status: "normal", note: "" },
+            { id: 42, name: "ปีโป้", status: "normal", note: "" },
+            { id: 43, name: "แคน", status: "normal", note: "" },
+            { id: 44, name: "เกน (จ.)", status: "normal", note: "" },
+            { id: 45, name: "ภูวิชช์", status: "normal", note: "" },
+            { id: 46, name: "ไบโอ", status: "normal", note: "" },
+            { id: 47, name: "ลาเต้", status: "normal", note: "" },
+            { id: 48, name: "เรียวมะ", status: "normal", note: "" }
+        ];
+
+        const fixedWeeklySchedule = {
+            1: [1, 9, 21, 32, 12, 37, 47, 44, 43],        // วันจันทร์ (9 คน)
+            2: [2, 16, 25, 38, 11, 22, 31, 35],            // วันอังคาร
+            3: [3, 14, 23, 26, 36, 40, 42, 28, 46, 33],   // วันพุธ (10 คน)
+            4: [4, 17, 24, 29, 41, 6, 27, 34, 39, 7],     // วันพฤหัสบดี (10 คน)
+            5: [5, 8, 10, 19, 20, 13, 18, 48, 45]         // วันศุกร์ (9 คน)
+        };
+
+        function renderUI() {
+            document.getElementById('dutyDate').value = selectedDateStr;
+            const dateObj = new Date(selectedDateStr + 'T00:00:00');
+            const thaiDate = dateObj.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' });
+            document.getElementById('displayDate').textContent = thaiDate;
+
+            const roleBadge = document.getElementById('roleBadge');
+            const inspectorPanel = document.getElementById('inspectorControlPanel');
+            const roleBtnText = document.getElementById('roleBtnText');
+
+            if (isInspector) {
+                roleBadge.textContent = `👮‍♂️ ผู้ตรวจ (${currentInspectorId})`;
+                roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold';
+                inspectorPanel.classList.remove('hidden');
+                roleBtnText.textContent = `👮‍♂️ ${currentInspectorId}`;
+            } else {
+                roleBadge.textContent = '👁️ ดูอย่างเดียว';
+                roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium';
+                inspectorPanel.classList.add('hidden');
+                roleBtnText.textContent = '🔑 ผู้ตรวจเวร';
+            }
+
+            if (currentTab === 'today') renderTodayDuty();
+            else if (currentTab === 'roster') renderRoster();
+            else if (currentTab === 'stats') renderStats();
+
+            populateAssignSelect();
+        }
+
+        function getDutyItemsForDate(dateStr) {
+            if (dutySchedule[dateStr] && dutySchedule[dateStr].length > 0) {
+                return dutySchedule[dateStr];
+            }
+            const dateObj = new Date(dateStr + 'T00:00:00');
+            const dayOfWeek = dateObj.getDay();
+            const assignedIds = fixedWeeklySchedule[dayOfWeek] || [];
+            return assignedIds.map(id => ({
+                memberId: id,
+                status: 'pending',
+                tasks: [],
+                addedAt: new Date().toISOString()
+            }));
+        }
+
+        function renderTodayDuty() {
+            const container = document.getElementById('todayDutyList');
+            const dayData = getDutyItemsForDate(selectedDateStr);
+            document.getElementById('dutyCount').textContent = `${dayData.length} คน`;
+
+            if (dayData.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white p-8 rounded-2xl text-center text-slate-400 shadow-sm border border-slate-200 space-y-1">
+                        <div class="text-3xl">🌿</div>
+                        <div class="text-sm font-semibold text-slate-600">ไม่มีเวรที่ต้องปฏิบัติในวันนี้ (วันเสาร์ - อาทิตย์)</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            dayData.forEach((item) => {
+                const member = membersMaster.find(m => m.id === item.memberId) || { id: item.memberId, name: `เลขที่ ${item.memberId}`, status: 'normal' };
+                const currentStatus = item.status || 'pending';
+                const tasks = item.tasks || [];
+
+                let statusBadge = '';
+                let bgBadgeClass = 'bg-slate-100 text-slate-700';
+
+                if (currentStatus === 'done') {
+                    statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">🟢 ทำแล้ว</span>`;
+                    bgBadgeClass = 'bg-emerald-500 text-white';
+                } else if (currentStatus === 'incomplete') {
+                    statusBadge = `<span class="bg-amber-100 text-amber-800 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">⚠️ ไม่เรียบร้อย</span>`;
+                    bgBadgeClass = 'bg-amber-500 text-white';
+                } else if (currentStatus === 'skipped') {
+                    statusBadge = `<span class="bg-rose-100 text-rose-700 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">❌ โดดเวร</span>`;
+                    bgBadgeClass = 'bg-rose-500 text-white';
+                } else {
+                    statusBadge = `<span class="bg-slate-100 text-slate-700 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">⏳ รอขึ้นทำ</span>`;
+                }
+
+                let isInactive = member.status !== 'normal';
+                let inactiveTag = isInactive ? `<span class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium ml-1">${member.note}</span>` : '';
+                let tasksText = tasks.length > 0 ? tasks.join(', ') : 'ยังไม่ได้ระบุงาน';
+
+                html += `
+                    <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 space-y-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl ${bgBadgeClass} font-bold flex items-center justify-center text-sm shadow-inner">
+                                    ${member.id}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-sm text-slate-800 flex items-center">
+                                        ${member.name} ${inactiveTag}
+                                    </div>
+                                    <div class="text-[11px] text-slate-400">
+                                        ${item.doneAt ? `ตรวจเมื่อ: ${item.doneAt} ${item.checkedBy ? `(ผู้ตรวจ: ${item.checkedBy})` : ''}` : 'รอตรวจงาน'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div>${statusBadge}</div>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <div class="text-slate-600">
+                                🛠️ <span class="font-medium text-slate-700">${tasksText}</span>
+                            </div>
+                            <div>
+                                ${isInspector ? `
+                                    <button onclick="openDutyModal(${member.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold px-3 py-1.5 rounded-xl active:scale-95 transition">
+                                        ✏️ ตรวจงาน
+                                    </button>
+                                ` : `
+                                    <span class="text-[11px] text-slate-400 font-medium bg-slate-50 px-2.5 py-1 rounded-lg">👁️ ดูอย่างเดียว</span>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderRoster() {
+            const container = document.getElementById('rosterGrid');
+            let html = '';
+            membersMaster.forEach(m => {
+                let statusBg = 'bg-white border-slate-200 text-slate-800';
+                let tagHtml = '';
+                if (m.status === 'moved') {
+                    statusBg = 'bg-amber-50/70 border-amber-200 text-amber-900';
+                    tagHtml = `<span class="bg-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ย้ายห้อง</span>`;
+                } else if (m.status === 'resigned') {
+                    statusBg = 'bg-rose-50/70 border-rose-200 text-rose-900';
+                    tagHtml = `<span class="bg-rose-200 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ลาออก</span>`;
+                }
+
+                let doneCount = 0;
+                Object.values(dutySchedule).forEach(dayList => {
+                    if (Array.isArray(dayList)) {
+                        dayList.forEach(item => {
+                            if (item.memberId === m.id && (item.status === 'done' || item.status === 'incomplete')) doneCount++;
+                        });
+                    }
+                });
+
+                html += `
+                    <div class="${statusBg} border p-3 rounded-2xl shadow-sm flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 font-bold text-xs flex items-center justify-center text-slate-700">
+                                ${m.id}
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold">${m.name}</div>
+                                <div class="text-[10px] text-slate-400">ทำแล้ว: <b class="text-indigo-600">${doneCount}</b> ครั้ง</div>
+                            </div>
+                        </div>
+                        <div>${tagHtml}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderStats() {
+            const container = document.getElementById('statsList');
+            let grandTotal = 0;
+            let grandSkippedTotal = 0;
+
+            const statsMap = {};
+            membersMaster.forEach(m => {
+                statsMap[m.id] = { ...m, totalDone: 0, totalIncomplete: 0, totalSkipped: 0 };
+            });
+
+            Object.values(dutySchedule).forEach(dayList => {
+                if (Array.isArray(dayList)) {
+                    dayList.forEach(item => {
+                        if (statsMap[item.memberId]) {
+                            if (item.status === 'done') { statsMap[item.memberId].totalDone++; grandTotal++; }
+                            else if (item.status === 'incomplete') { statsMap[item.memberId].totalIncomplete++; grandTotal++; }
+                            else if (item.status === 'skipped') { statsMap[item.memberId].totalSkipped++; grandSkippedTotal++; }
+                        }
+                    });
+                }
+            });
+
+            document.getElementById('totalDutyDoneCount').textContent = `${grandTotal} ครั้ง`;
+            document.getElementById('totalSkippedCount').textContent = `${grandSkippedTotal} ครั้ง`;
+
+            let html = '';
+            Object.values(statsMap).sort((a, b) => (b.totalDone + b.totalIncomplete) - (a.totalDone + a.totalIncomplete) || b.totalSkipped - a.totalSkipped || a.id - b.id).forEach(item => {
+                let statusBadge = '';
+                if (item.status === 'moved') statusBadge = '<span class="text-[9px] bg-amber-100 text-amber-700 px-1 rounded ml-1">ย้ายห้อง</span>';
+                if (item.status === 'resigned') statusBadge = '<span class="text-[9px] bg-red-100 text-red-700 px-1 rounded ml-1">ลาออก</span>';
+
+                html += `
+                    <div class="p-3 text-xs grid grid-cols-12 items-center hover:bg-slate-50 transition">
+                        <span class="col-span-2 text-center font-bold text-slate-500">#${item.id}</span>
+                        <span class="col-span-5 font-medium text-slate-800 flex items-center">${item.name} ${statusBadge}</span>
+                        <div class="col-span-5 flex justify-end gap-1 text-[10px]">
+                            <span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg font-bold">🟢 ${item.totalDone}</span>
+                            <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-lg font-bold">⚠️ ${item.totalIncomplete}</span>
+                            <span class="bg-rose-100 text-rose-800 px-2 py-1 rounded-lg font-bold">❌ ${item.totalSkipped}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function populateAssignSelect() {
+            const select = document.getElementById('assignSelect');
+            if (!select) return;
+            let html = '<option value="">-- เลือกเลขที่ 1-48 --</option>';
+            membersMaster.forEach(m => {
+                let extra = m.status !== 'normal' ? ` (${m.note})` : '';
+                html += `<option value="${m.id}">เลขที่ ${m.id}: ${m.name}${extra}</option>`;
+            });
+            select.innerHTML = html;
+        }
+
+        function loginAsInspector() {
+            const inputId = document.getElementById('inspectorId').value.trim();
+            const inputPass = document.getElementById('inspectorPass').value.trim();
+            const errorElem = document.getElementById('loginError');
+
+            const valid = ALLOWED_INSPECTORS.find(item => item.id === inputId && item.pass === inputPass);
+
+            if (valid) {
+                isInspector = true;
+                currentInspectorId = valid.id;
+                errorElem.classList.add('hidden');
+                document.getElementById('inspectorId').value = '';
+                document.getElementById('inspectorPass').value = '';
+                toggleRoleModal();
+                renderUI();
+                showToast(`✅ ยินดีต้อนรับ ผู้ตรวจเวร ${valid.id}`);
+            } else {
+                errorElem.classList.remove('hidden');
+            }
+        }
+
+        function logoutInspector() {
+            isInspector = false;
+            currentInspectorId = null;
+            toggleRoleModal();
+            renderUI();
+            showToast(`🚪 ออกจากระบบผู้ตรวจแล้ว`);
+        }
+
+        function openDutyModal(memberId) {
+            if (!isInspector) return;
+            activeModalMemberId = memberId;
+            const member = membersMaster.find(m => m.id === memberId);
+            const dayData = getDutyItemsForDate(selectedDateStr);
+            const currentItem = dayData.find(i => i.memberId === memberId) || {};
+
+            document.getElementById('modalMemberTitle').textContent = `เลขที่ ${memberId}: ${member ? member.name : ''}`;
+            document.getElementById('modalMemberSub').textContent = `ประจำวันที่ ${selectedDateStr}`;
+
+            const radios = document.getElementsByName('dutyStatusRadio');
+            const targetStatus = currentItem.status || 'done';
+            radios.forEach(r => { r.checked = (r.value === targetStatus); });
+
+            const checkboxes = document.querySelectorAll('.task-checkbox');
+            const currentTasks = currentItem.tasks || [];
+            checkboxes.forEach(cb => { cb.checked = currentTasks.includes(cb.value); });
+
+            document.getElementById('dutyActionModal').classList.remove('hidden');
+        }
+
+        function closeDutyModal() {
+            document.getElementById('dutyActionModal').classList.add('hidden');
+            activeModalMemberId = null;
+        }
+
+        function saveDutyModalAction() {
+            if (!isInspector || !activeModalMemberId) return;
+
+            let dayData = getDutyItemsForDate(selectedDateStr);
+            const radios = document.getElementsByName('dutyStatusRadio');
+            let selectedStatus = 'done';
+            radios.forEach(r => { if (r.checked) selectedStatus = r.value; });
+
+            const checkboxes = document.querySelectorAll('.task-checkbox');
+            const selectedTasks = [];
+            checkboxes.forEach(cb => { if (cb.checked) selectedTasks.push(cb.value); });
+
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} น.`;
+
+            dutySchedule[selectedDateStr] = dayData.map(item => {
+                if (item.memberId === activeModalMemberId) {
+                    return {
+                        ...item,
+                        status: selectedStatus,
+                        tasks: selectedTasks,
+                        doneAt: timeStr,
+                        checkedBy: currentInspectorId
+                    };
+                }
+                return item;
+            });
+
+            closeDutyModal();
+            saveData();
+            showToast(`💾 บันทึกผลการตรวจเรียบร้อย`);
+        }
+
+        function addDutyToSelectedDate() {
+            if (!isInspector) return;
+            const select = document.getElementById('assignSelect');
+            const memberId = parseInt(select.value, 10);
+            if (!memberId) return;
+
+            if (!dutySchedule[selectedDateStr]) {
+                dutySchedule[selectedDateStr] = getDutyItemsForDate(selectedDateStr);
+            }
+
+            const exists = dutySchedule[selectedDateStr].some(i => i.memberId === memberId);
+            if (exists) {
+                showToast("⚠️ เลขที่นี้อยู่ในตารางเวรวันนี้แล้ว");
+                return;
+            }
+
+            dutySchedule[selectedDateStr].push({
+                memberId: memberId,
+                status: 'pending',
+                tasks: [],
+                addedAt: new Date().toISOString()
+            });
+
+            select.value = '';
+            saveData();
+            showToast(`➕ เพิ่มเลขที่ ${memberId} เข้าเวรเรียบร้อย`);
+        }
+
+        function setToToday() {
+            selectedDateStr = new Date().toISOString().split('T')[0];
+            document.getElementById('dutyDate').value = selectedDateStr;
+            renderUI();
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            document.getElementById('tabTodayBtn').className = tabName === 'today' ? 'flex-1 py-2.5 rounded-lg text-center bg-white text-indigo-600 shadow-sm transition' : 'flex-1 py-2.5 rounded-lg text-center text-slate-600 transition';
+            document.getElementById('tabRosterBtn').className = tabName === 'roster' ? 'flex-1 py-2.5 rounded-lg text-center bg-white text-indigo-600 shadow-sm transition' : 'flex-1 py-2.5 rounded-lg text-center text-slate-600 transition';
+            document.getElementById('tabStatsBtn').className = tabName === 'stats' ? 'flex-1 py-2.5 rounded-lg text-center bg-white text-indigo-600 shadow-sm transition' : 'flex-1 py-2.5 rounded-lg text-center text-slate-600 transition';
+
+            document.getElementById('viewToday').classList.toggle('hidden', tabName !== 'today');
+            document.getElementById('viewRoster').classList.toggle('hidden', tabName !== 'roster');
+            document.getElementById('viewStats').classList.toggle('hidden', tabName !== 'stats');
+
+            renderUI();
+        }
+
+        function toggleRoleModal() {
+            const modal = document.getElementById('roleModal');
+            const loginForm = document.getElementById('loginForm');
+            const logoutForm = document.getElementById('logoutForm');
+            const currentInfo = document.getElementById('currentInspectorInfo');
+
+            if (isInspector) {
+                loginForm.classList.add('hidden');
+                logoutForm.classList.remove('hidden');
+                currentInfo.textContent = `เข้าใช้งานในฐานะ ผู้ตรวจ ${currentInspectorId}`;
+            } else {
+                loginForm.classList.remove('hidden');
+                logoutForm.classList.add('hidden');
+            }
+            modal.classList.toggle('hidden');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2500);
+        }
+
+        document.getElementById('dutyDate').addEventListener('change', (e) => {
+            if (e.target.value) {
+                selectedDateStr = e.target.value;
+                renderUI();
+            }
+        });
+
+        window.onload = function() {
+            loadStoredSchedule();
+            setToToday();
+            renderUI();
+        };
+    </script>
+</body>
+</html>
